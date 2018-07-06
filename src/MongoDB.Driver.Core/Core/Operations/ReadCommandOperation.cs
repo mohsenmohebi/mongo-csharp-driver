@@ -73,8 +73,7 @@ namespace MongoDB.Driver.Core.Operations
             using (EventContext.BeginOperation())
             using (var channelSource = await binding.GetReadChannelSourceAsync(cancellationToken).ConfigureAwait(false))
             {
-                var res = await ExecuteProtocolAsync(channelSource, binding.Session, binding.ReadPreference, cancellationToken).ConfigureAwait(false);
-                return res;
+                return await ExecuteProtocolAsync(channelSource, binding.Session, binding.ReadPreference, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -83,11 +82,11 @@ namespace MongoDB.Driver.Core.Operations
         {
             Ensure.IsNotNull(binding, nameof(binding));
 
+            using (BlockTimer.For("ReadCommandOperation: execute wire protocol async (send and receive message)"))
             using (EventContext.BeginOperation())
             using (var channelSource = await binding.GetReadChannelSourceAsync(cancellationToken).ConfigureAwait(false))
             {
-                var res = await ExecuteBytesProtocolAsync(channelSource, binding.Session, binding.ReadPreference, cancellationToken).ConfigureAwait(false);
-                return res;
+                return await ExecuteBytesProtocolAsync(channelSource, binding.Session, binding.ReadPreference, cancellationToken).ConfigureAwait(false);
             }
         }
 

@@ -190,6 +190,23 @@ namespace MongoDB.Driver.Core.WireProtocol
                 _postWriteAction);
         }
 
+        private IWireProtocol<TCommandResult> CreateBytesCommandUsingQueryMessageWireProtocol()
+        {
+            var responseHandling = _responseHandling == CommandResponseHandling.NoResponseExpected ? CommandResponseHandling.Ignore : _responseHandling;
+
+            return new CommandUsingQueryMessageWireProtocol<TCommandResult>(
+                _session,
+                _readPreference,
+                _databaseNamespace,
+                _command,
+                _commandPayloads,
+                _commandValidator,
+                _additionalOptions,
+                responseHandling,
+                _messageEncoderSettings,
+                _postWriteAction);
+        }
+
         private IWireProtocol<TCommandResult> CreateSupportedWireProtocol(IConnection connection)
         {
             var serverVersion = connection.Description?.ServerVersion;
@@ -212,7 +229,7 @@ namespace MongoDB.Driver.Core.WireProtocol
             }
             else
             {
-                return CreateCommandUsingQueryMessageWireProtocol();
+                return CreateBytesCommandUsingQueryMessageWireProtocol();
             }
         }
 

@@ -845,8 +845,7 @@ namespace MongoDB.Driver.Core.Servers
             {
                 try
                 {
-                    var res = await protocol.ExecuteAsync(_connection, cancellationToken).ConfigureAwait(false);
-                    return res;
+                    return await protocol.ExecuteAsync(_connection, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -859,8 +858,7 @@ namespace MongoDB.Driver.Core.Servers
             {
                 try
                 {
-                    var res = await protocol.ExecuteBytesAsync(_connection, cancellationToken).ConfigureAwait(false);
-                    return res;
+                    return await protocol.ExecuteBytesAsync(_connection, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {

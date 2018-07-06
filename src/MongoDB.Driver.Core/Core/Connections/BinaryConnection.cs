@@ -393,6 +393,7 @@ namespace MongoDB.Driver.Core.Connections
 
         private async Task<IByteBuffer> ReceiveBufferAsync(int responseTo, CancellationToken cancellationToken)
         {
+            using (BlockTimer.For($"BinaryConnection: Receving buffer for ({responseTo})"))
             using (var receiveLockRequest = new SemaphoreSlimRequest(_receiveLock, cancellationToken))
             {
                 var messageTask = _dropbox.GetMessageAsync(responseTo);

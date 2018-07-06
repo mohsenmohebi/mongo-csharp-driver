@@ -565,7 +565,8 @@ namespace MongoDB.Driver.Core.Operations
         public override async Task<IAsyncCursor<byte[]>> ExecuteBytesAsync(IReadBinding binding, CancellationToken cancellationToken)
         {
             Ensure.IsNotNull(binding, nameof(binding));
-
+            
+            using(BlockTimer.For("FindCommandOperation: operation execute async and create cursor"))
             using (EventContext.BeginOperation())
             using (var channelSource = await binding.GetReadChannelSourceAsync(cancellationToken).ConfigureAwait(false))
             using (var channel = await channelSource.GetChannelAsync(cancellationToken).ConfigureAwait(false))

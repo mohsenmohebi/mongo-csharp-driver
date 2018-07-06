@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -77,6 +78,35 @@ namespace MongoDB.Driver.Core.WireProtocol
             _additionalOptions = additionalOptions; // can be null
             _responseHandling = responseHandling;
             _resultSerializer = Ensure.IsNotNull(resultSerializer, nameof(resultSerializer));
+            _messageEncoderSettings = messageEncoderSettings;
+            _postWriteAction = postWriteAction; // can be null
+        }
+
+        public CommandUsingQueryMessageWireProtocol(
+            ICoreSession session,
+            ReadPreference readPreference,
+            DatabaseNamespace databaseNamespace,
+            BsonDocument command,
+            IEnumerable<Type1CommandMessageSection> commandPayloads,
+            IElementNameValidator commandValidator,
+            BsonDocument additionalOptions,
+            CommandResponseHandling responseHandling,
+            MessageEncoderSettings messageEncoderSettings,
+            Action<IMessageEncoderPostProcessor> postWriteAction)
+        {
+            if (responseHandling != CommandResponseHandling.Return && responseHandling != CommandResponseHandling.Ignore)
+            {
+                throw new ArgumentException("CommandResponseHandling must be Return or Ignore.", nameof(responseHandling));
+            }
+
+            _session = Ensure.IsNotNull(session, nameof(session));
+            _readPreference = readPreference;
+            _databaseNamespace = Ensure.IsNotNull(databaseNamespace, nameof(databaseNamespace));
+            _command = Ensure.IsNotNull(command, nameof(command));
+            _commandPayloads = commandPayloads?.ToList(); // can be null
+            _commandValidator = Ensure.IsNotNull(commandValidator, nameof(commandValidator));
+            _additionalOptions = additionalOptions; // can be null
+            _responseHandling = responseHandling;
             _messageEncoderSettings = messageEncoderSettings;
             _postWriteAction = postWriteAction; // can be null
         }
@@ -149,6 +179,37 @@ namespace MongoDB.Driver.Core.WireProtocol
                     var encoderSelector = new ReplyMessageEncoderSelector<RawBsonDocument>(RawBsonDocumentSerializer.Instance);
                     var reply = await connection.ReceiveMessageAsync(message.RequestId, encoderSelector, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
                     return ProcessReply(connection.ConnectionId, (ReplyMessage<RawBsonDocument>)reply);
+            }
+        }
+
+        public async Task<byte[]> ExecuteBytesAsync(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            using (BlockTimer.For("CUQMWP: Send and receive wire protocol message"))
+            {
+                bool messageContainsSessionId;
+                var message = CreateMessage(connection.Description, out messageContainsSessionId);
+                using (BlockTimer.For($"CUQMWP: Send message ({message.RequestId})"))
+                    await connection.SendMessageAsync(message, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
+                if (messageContainsSessionId)
+                {
+                    _session.WasUsed();
+                }
+
+                switch (message.ResponseHandling)
+                {
+                    case CommandResponseHandling.Ignore:
+                        IgnoreResponse(connection, message, cancellationToken);
+                        return default(byte[]);
+                    default:
+                        var encoderSelector = new ReplyMessageEncoderSelector<RawBsonDocument>(RawBsonDocumentSerializer.Instance);
+                        using (BlockTimer.For($"CUQMWP: Receive message ({message.RequestId})"))
+                        {
+                            var reply = await connection.ReceiveMessageAsync(message.RequestId, encoderSelector, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
+                            using (BlockTimer.For($"CUQMWP: Process bytes reply for ({reply.ResponseTo})"))
+                                return ProcessBytesReply(connection.ConnectionId, (ReplyMessage<RawBsonDocument>)reply);
+                        }
+                }
+
             }
         }
 
@@ -313,6 +374,99 @@ namespace MongoDB.Driver.Core.WireProtocol
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
+        private byte[] ProcessBytesReply(ConnectionId connectionId, ReplyMessage<RawBsonDocument> reply)
+        {
+            if (reply.NumberReturned == 0)
+            {
+                throw new MongoCommandException(connectionId, "Command returned no documents.", _command);
+            }
+            if (reply.NumberReturned > 1)
+            {
+                throw new MongoCommandException(connectionId, "Command returned multiple documents.", _command);
+            }
+            if (reply.QueryFailure)
+            {
+                var failureDocument = reply.QueryFailureDocument;
+                throw ExceptionMapper.Map(connectionId, failureDocument) ?? new MongoCommandException(connectionId, "Command failed.", _command, failureDocument);
+            }
+
+            using (var rawDocument = reply.Documents[0])
+            {
+                var binaryReaderSettings = new BsonBinaryReaderSettings();
+                if (_messageEncoderSettings != null)
+                {
+                    binaryReaderSettings.Encoding = _messageEncoderSettings.GetOrDefault<UTF8Encoding>(MessageEncoderSettingsName.ReadEncoding, Utf8Encodings.Strict);
+                    binaryReaderSettings.GuidRepresentation = _messageEncoderSettings.GetOrDefault<GuidRepresentation>(MessageEncoderSettingsName.GuidRepresentation, GuidRepresentation.CSharpLegacy);
+                };
+
+                BsonValue clusterTime;
+                if (rawDocument.TryGetValue("$clusterTime", out clusterTime))
+                {
+                    // note: we are assuming that _session is an instance of ClusterClockAdvancingClusterTime
+                    // and that calling _session.AdvanceClusterTime will have the side effect of advancing the cluster's ClusterTime also
+                    var materializedClusterTime = ((RawBsonDocument)clusterTime).Materialize(binaryReaderSettings);
+                    _session.AdvanceClusterTime(materializedClusterTime);
+                }
+                BsonValue operationTime;
+                if (rawDocument.TryGetValue("operationTime", out operationTime))
+                {
+                    _session.AdvanceOperationTime(operationTime.AsBsonTimestamp);
+                }
+
+                if (!rawDocument.GetValue("ok", false).ToBoolean())
+                {
+                    var materializedDocument = rawDocument.Materialize(binaryReaderSettings);
+
+                    var commandName = _command.GetElement(0).Name;
+                    if (commandName == "$query")
+                    {
+                        commandName = _command["$query"].AsBsonDocument.GetElement(0).Name;
+                    }
+
+                    var notPrimaryOrNodeIsRecoveringException = ExceptionMapper.MapNotPrimaryOrNodeIsRecovering(connectionId, _command, materializedDocument, "errmsg");
+                    if (notPrimaryOrNodeIsRecoveringException != null)
+                    {
+                        throw notPrimaryOrNodeIsRecoveringException;
+                    }
+
+                    string message;
+                    BsonValue errmsgBsonValue;
+                    if (materializedDocument.TryGetValue("errmsg", out errmsgBsonValue) && errmsgBsonValue.IsString)
+                    {
+                        var errmsg = errmsgBsonValue.ToString();
+                        message = string.Format("Command {0} failed: {1}.", commandName, errmsg);
+                    }
+                    else
+                    {
+                        message = string.Format("Command {0} failed.", commandName);
+                    }
+
+                    var mappedException = ExceptionMapper.Map(connectionId, materializedDocument);
+                    if (mappedException != null)
+                    {
+                        throw mappedException;
+                    }
+
+                    throw new MongoCommandException(connectionId, message, _command, materializedDocument);
+                }
+
+                using (var stream = new ByteBufferStream(rawDocument.Slice, ownsBuffer: false))
+                {
+                    using (var memStream = new MemoryStream())
+                    {
+                        using (var timer = BlockTimer.For("CUQMWP: Network stream to byte array"))
+                        {
+                            stream.CopyTo(memStream);
+                            var arr = memStream.ToArray();
+                            timer.Append($"of {arr.Length} bytes");
+                            return arr;
+                        }
+                    }
+                }
+            }
+        }
+
         private BsonDocument WrapCommandForQueryMessage(BsonDocument command, ConnectionDescription connectionDescription, out bool messageContainsSessionId)
         {
             messageContainsSessionId = false;
@@ -368,11 +522,6 @@ namespace MongoDB.Driver.Core.WireProtocol
             {
                 return wrappedCommand;
             }
-        }
-
-        public Task<byte[]> ExecuteBytesAsync(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            throw new NotImplementedException();
         }
 
         // nested types
