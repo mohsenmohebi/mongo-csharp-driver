@@ -448,11 +448,14 @@ namespace MongoDB.Driver.Core.Operations
         {
             Ensure.IsNotNull(binding, nameof(binding));
 
+            using (var timer = BlockTimer.For("FindOperation: Create channelSource, channel and channelBinding").IncludeStart())
             using (var channelSource = await binding.GetReadChannelSourceAsync(cancellationToken).ConfigureAwait(false))
             using (var channel = await channelSource.GetChannelAsync(cancellationToken).ConfigureAwait(false))
             using (var channelBinding = new ChannelReadBinding(channelSource.Server, channel, binding.ReadPreference, binding.Session.Fork()))
             {
                 var operation = CreateOperation(channel.ConnectionDescription.ServerVersion);
+
+                timer.SubTime("channelSource, channel and channelBinding created", "Execute find operation");
                 return await operation.ExecuteBytesAsync(channelBinding, cancellationToken).ConfigureAwait(false);
             }
         }

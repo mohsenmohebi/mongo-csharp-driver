@@ -1162,8 +1162,7 @@ namespace MongoDB.Driver
         {
             using (var session = await _operationExecutor.StartImplicitSessionAsync(cancellationToken).ConfigureAwait(false))
             {
-                var res = await funcAsync(session).ConfigureAwait(false);
-                return res;
+                return await funcAsync(session).ConfigureAwait(false);
             }
         }
 

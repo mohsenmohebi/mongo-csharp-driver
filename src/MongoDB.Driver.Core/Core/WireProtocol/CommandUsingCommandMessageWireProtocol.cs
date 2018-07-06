@@ -184,29 +184,35 @@ namespace MongoDB.Driver.Core.WireProtocol
         {
             try
             {
-                var message = CreateCommandMessage(connection.Description);
+                using (BlockTimer.For($"CUCMWP: Send and receive wire protocol message"))
+                {
+                    var message = CreateCommandMessage(connection.Description);
 
-                try
-                {
-                    var doc = message.WrappedMessage.Sections.Single().ToBsonDocument();
+                    try
+                    {
+                        var doc = message.WrappedMessage.Sections.Single().ToBsonDocument();
 
-                    await connection.SendMessageAsync(message, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    MessageWasProbablySent(message);
-                }
+                        using (BlockTimer.For($"CUCMWP: Send message ({message.RequestId})"))
+                            await connection.SendMessageAsync(message, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        MessageWasProbablySent(message);
+                    }
 
-                if (message.WrappedMessage.ResponseExpected)
-                {
-                    var encoderSelector = new CommandResponseMessageEncoderSelector();
-                    var response = (CommandResponseMessage)await connection.ReceiveMessageAsync(message.RequestId, encoderSelector, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
-                    var res = ProcessBytesResponse(connection.ConnectionId, response.WrappedMessage);
-                    return res;
-                }
-                else
-                {
-                    return default(byte[]);
+                    if (message.WrappedMessage.ResponseExpected)
+                    {
+                        using (BlockTimer.For($"CUCMWP: Receive message ({message.RequestId})"))
+                        {
+                            var encoderSelector = new CommandResponseMessageEncoderSelector();
+                            var response = (CommandResponseMessage)await connection.ReceiveMessageAsync(message.RequestId, encoderSelector, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
+                            using (BlockTimer.For($"CUCMWP: Process bytes reply for ({response.ResponseTo})"))
+                                return ProcessBytesResponse(connection.ConnectionId, response.WrappedMessage);
+                        }                    }
+                    else
+                    {
+                        return default(byte[]);
+                    } 
                 }
             }
             catch (MongoException exception) when (ShouldAddTransientTransactionError(exception))
@@ -379,10 +385,10 @@ namespace MongoDB.Driver.Core.WireProtocol
                     using (var reader = new BsonBinaryReader(stream, binaryReaderSettings))
                     {
                         var context = BsonDeserializationContext.CreateRoot(reader);
-                        var sw = Stopwatch.StartNew();
-                        var doc = _resultSerializer.Deserialize(context);
-                        Debug.WriteLine($"MONGO_DRIVER:CUCMWP -> Network stream deserialized in {sw.ElapsedMilliseconds} ms.");
-                        return doc;
+                        using (BlockTimer.For($"CUCMWP: Response message deserialized"))
+                        {
+                            return _resultSerializer.Deserialize(context);
+                        }
                     }
                 }
             }
@@ -457,12 +463,12 @@ namespace MongoDB.Driver.Core.WireProtocol
 
                 using (var stream = new ByteBufferStream(rawDocument.Slice, ownsBuffer: false))
                 {
+                    using (var timer = BlockTimer.For($"CUCMWP: Response message to byte array ({responseMessage.ResponseTo})"))
                     using (var memStream = new MemoryStream())
                     {
-                        var swmem = Stopwatch.StartNew();
                         stream.CopyTo(memStream);
                         var arr = memStream.ToArray();
-                        Debug.WriteLine($"MONGO_DRIVER:CUCMWP -> Network stream to ({arr.Length}) bytes in memory in {swmem.ElapsedMilliseconds} ms.");
+                        timer.Append($"of {arr.Length} bytes");
                         return arr;
                     }
                 }

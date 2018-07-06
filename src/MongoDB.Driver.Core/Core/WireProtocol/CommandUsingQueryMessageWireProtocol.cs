@@ -453,15 +453,13 @@ namespace MongoDB.Driver.Core.WireProtocol
 
                 using (var stream = new ByteBufferStream(rawDocument.Slice, ownsBuffer: false))
                 {
+                    using (var timer = BlockTimer.For($"CUQMWP: Response message to byte array ({reply.ResponseTo})"))
                     using (var memStream = new MemoryStream())
                     {
-                        using (var timer = BlockTimer.For("CUQMWP: Network stream to byte array"))
-                        {
-                            stream.CopyTo(memStream);
-                            var arr = memStream.ToArray();
-                            timer.Append($"of {arr.Length} bytes");
-                            return arr;
-                        }
+                        stream.CopyTo(memStream);
+                        var arr = memStream.ToArray();
+                        timer.Append($"of {arr.Length} bytes");
+                        return arr;
                     }
                 }
             }
