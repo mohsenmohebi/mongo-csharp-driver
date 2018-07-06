@@ -35,7 +35,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents a Find opcode operation.
     /// </summary>
     /// <typeparam name="TDocument">The type of the returned documents.</typeparam>
-    public class FindOpcodeOperation<TDocument> : IReadOperation<IAsyncCursor<TDocument>>
+    public class FindOpcodeOperation<TDocument> : BaseOperation, IReadOperation<IAsyncCursor<TDocument>>
     {
         // fields
         private bool? _allowPartialResults;
@@ -536,7 +536,7 @@ namespace MongoDB.Driver.Core.Operations
         }
 
         // nested types
-        private class FindOpcodeExplainOperation : IReadOperation<BsonDocument>
+        private class FindOpcodeExplainOperation : BaseOperation, IReadOperation<BsonDocument>
         {
             private readonly FindOpcodeOperation<BsonDocument> _explainOperation;
 

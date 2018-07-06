@@ -97,6 +97,35 @@ namespace MongoDB.Driver.Core.WireProtocol
             _postWriteAction = postWriteAction; // can be null
         }
 
+        public CommandWireProtocol(
+            ICoreSession session,
+            ReadPreference readPreference,
+            DatabaseNamespace databaseNamespace,
+            BsonDocument command,
+            IEnumerable<Type1CommandMessageSection> commandPayloads,
+            IElementNameValidator commandValidator,
+            BsonDocument additionalOptions,
+            Action<IMessageEncoderPostProcessor> postWriteAction,
+            CommandResponseHandling responseHandling,
+            MessageEncoderSettings messageEncoderSettings)
+        {
+            if (responseHandling != CommandResponseHandling.Return && responseHandling != CommandResponseHandling.NoResponseExpected)
+            {
+                throw new ArgumentException("CommandResponseHandling must be Return or NoneExpected.", nameof(responseHandling));
+            }
+
+            _session = Ensure.IsNotNull(session, nameof(session));
+            _readPreference = readPreference;
+            _databaseNamespace = Ensure.IsNotNull(databaseNamespace, nameof(databaseNamespace));
+            _command = Ensure.IsNotNull(command, nameof(command));
+            _commandPayloads = commandPayloads?.ToList(); // can be null
+            _commandValidator = Ensure.IsNotNull(commandValidator, nameof(commandValidator));
+            _additionalOptions = additionalOptions; // can be null
+            _responseHandling = responseHandling;
+            _messageEncoderSettings = messageEncoderSettings;
+            _postWriteAction = postWriteAction; // can be null
+        }
+
         // public methods
         public TCommandResult Execute(IConnection connection, CancellationToken cancellationToken)
         {
@@ -123,6 +152,22 @@ namespace MongoDB.Driver.Core.WireProtocol
                 _additionalOptions,
                 _responseHandling,
                 _resultSerializer,
+                _messageEncoderSettings,
+                _postWriteAction);
+        }
+
+        // private methods
+        private IWireProtocol<TCommandResult> CreateBytesCommandUsingCommandMessageWireProtocol()
+        {
+            return new CommandUsingCommandMessageWireProtocol<TCommandResult>(
+                _session,
+                _readPreference,
+                _databaseNamespace,
+                _command,
+                _commandPayloads,
+                _commandValidator,
+                _additionalOptions,
+                _responseHandling,
                 _messageEncoderSettings,
                 _postWriteAction);
         }
@@ -156,6 +201,25 @@ namespace MongoDB.Driver.Core.WireProtocol
             {
                 return CreateCommandUsingQueryMessageWireProtocol();
             }
+        }
+
+        private IWireProtocol<TCommandResult> CreateBytesSupportedWireProtocol(IConnection connection)
+        {
+            var serverVersion = connection.Description?.ServerVersion;
+            if (serverVersion != null && Feature.CommandMessage.IsSupported(serverVersion))
+            {
+                return CreateBytesCommandUsingCommandMessageWireProtocol();
+            }
+            else
+            {
+                return CreateCommandUsingQueryMessageWireProtocol();
+            }
+        }
+
+        public Task<byte[]> ExecuteBytesAsync(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var supportedProtocol = CreateBytesSupportedWireProtocol(connection);
+            return supportedProtocol.ExecuteBytesAsync(connection, cancellationToken);
         }
     }
 }

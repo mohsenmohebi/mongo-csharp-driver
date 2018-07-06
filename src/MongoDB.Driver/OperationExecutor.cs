@@ -39,6 +39,11 @@ namespace MongoDB.Driver
             return await operation.ExecuteAsync(binding, cancellationToken).ConfigureAwait(false);
         }
 
+        public async Task<IAsyncCursor<byte[]>> ExecuteBytesReadOperationAsync<TResult>(IReadBinding binding, IReadOperation<TResult> operation, CancellationToken cancellationToken)
+        {
+            return await operation.ExecuteBytesAsync(binding, cancellationToken).ConfigureAwait(false);
+        }
+
         public TResult ExecuteWriteOperation<TResult>(IWriteBinding binding, IWriteOperation<TResult> operation, CancellationToken cancellationToken)
         {
             return operation.Execute(binding, cancellationToken);

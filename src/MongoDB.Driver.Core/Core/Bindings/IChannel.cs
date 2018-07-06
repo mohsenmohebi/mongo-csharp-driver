@@ -220,6 +220,36 @@ namespace MongoDB.Driver.Core.Bindings
             CancellationToken cancellationToken);
 
         /// <summary>
+        /// Executes a Command protocol.
+        /// </summary>
+        /// <param name="session">The session.</param>
+        /// <param name="readPreference">The read preference.</param>
+        /// <param name="databaseNamespace">The database namespace.</param>
+        /// <param name="command">The command.</param>
+        /// <param name="commandPayloads">The command payloads.</param>
+        /// <param name="commandValidator">The command validator.</param>
+        /// <param name="additionalOptions">The additional options.</param>
+        /// <param name="postWriteAction">The post write action.</param>
+        /// <param name="responseHandling">The response handling.</param>
+        /// <param name="messageEncoderSettings">The message encoder settings.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>
+        /// A Task whose result is the result of the Command protocol.
+        /// </returns>
+        Task<byte[]> CommandBytesAsync(
+            ICoreSession session,
+            ReadPreference readPreference,
+            DatabaseNamespace databaseNamespace,
+            BsonDocument command,
+            IEnumerable<Type1CommandMessageSection> commandPayloads,
+            IElementNameValidator commandValidator,
+            BsonDocument additionalOptions,
+            Action<IMessageEncoderPostProcessor> postWriteAction,
+            CommandResponseHandling responseHandling,
+            MessageEncoderSettings messageEncoderSettings,
+            CancellationToken cancellationToken);
+
+        /// <summary>
         /// Executes a Delete protocol.
         /// </summary>
         /// <param name="collectionNamespace">The collection namespace.</param>

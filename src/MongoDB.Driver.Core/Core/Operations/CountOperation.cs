@@ -29,7 +29,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Represents a count operation.
     /// </summary>
-    public class CountOperation : IReadOperation<long>
+    public class CountOperation : BaseOperation, IReadOperation<long>
     {
         // fields
         private Collation _collation;

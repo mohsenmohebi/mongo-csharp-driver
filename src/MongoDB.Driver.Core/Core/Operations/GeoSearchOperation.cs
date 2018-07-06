@@ -30,7 +30,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents the geoSearch command.
     /// </summary>
     /// <typeparam name="TResult">The type of the result.</typeparam>
-    public sealed class GeoSearchOperation<TResult> : IReadOperation<TResult>
+    public sealed class GeoSearchOperation<TResult> : BaseOperation, IReadOperation<TResult>
     {
         private readonly CollectionNamespace _collectionNamespace;
         private int? _limit;

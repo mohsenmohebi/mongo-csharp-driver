@@ -60,6 +60,9 @@ namespace MongoDB.Driver.Core.Operations
         private readonly BsonDocument _query;
         private readonly IBsonSerializer<TDocument> _serializer;
 
+        /// <inheritdoc/>
+        public byte[] ResponseBytes { get; set; }
+
         // constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncCursor{TDocument}"/> class.
@@ -103,6 +106,51 @@ namespace MongoDB.Driver.Core.Operations
                 _firstBatch = _firstBatch.Take(_limit.Value).ToList();
             }
             _count = _firstBatch.Count;
+
+            DisposeChannelSourceIfNoLongerNeeded();
+        }
+
+        // constructors
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AsyncCursor{TDocument}"/> class.
+        /// </summary>
+        /// <param name="channelSource">The channel source.</param>
+        /// <param name="collectionNamespace">The collection namespace.</param>
+        /// <param name="responseBytes">The responseBytes.</param>
+        /// <param name="query">The query.</param>
+        /// <param name="cursorId">The cursor identifier.</param>
+        /// <param name="batchSize">The size of a batch.</param>
+        /// <param name="limit">The limit.</param>
+        /// <param name="messageEncoderSettings">The message encoder settings.</param>
+        /// <param name="maxTime">The maxTime for each batch.</param>
+        public AsyncCursor(
+            IChannelSource channelSource,
+            CollectionNamespace collectionNamespace,
+            BsonDocument query,
+            byte[] responseBytes,
+            long cursorId,
+            int? batchSize,
+            int? limit,
+            MessageEncoderSettings messageEncoderSettings,
+            TimeSpan? maxTime = null)
+        {
+            _operationId = EventContext.OperationId;
+            _channelSource = channelSource;
+            _collectionNamespace = Ensure.IsNotNull(collectionNamespace, nameof(collectionNamespace));
+            _query = Ensure.IsNotNull(query, nameof(query));
+            _cursorId = cursorId;
+            _batchSize = Ensure.IsNullOrGreaterThanOrEqualToZero(batchSize, nameof(batchSize));
+            _limit = Ensure.IsNullOrGreaterThanOrEqualToZero(limit, nameof(limit));
+            _messageEncoderSettings = messageEncoderSettings;
+            _maxTime = maxTime;
+
+            //if (_limit > 0 && _firstBatch.Count > _limit)
+            //{
+            //    _firstBatch = _firstBatch.Take(_limit.Value).ToList();
+            //}
+            //_count = _firstBatch.Count;
+
+            ResponseBytes = responseBytes;
 
             DisposeChannelSourceIfNoLongerNeeded();
         }

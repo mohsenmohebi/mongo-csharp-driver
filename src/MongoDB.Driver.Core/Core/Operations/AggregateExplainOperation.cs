@@ -28,9 +28,22 @@ using MongoDB.Shared;
 namespace MongoDB.Driver.Core.Operations
 {
     /// <summary>
+    /// Implements interface IReadOperation BsonDocument to make this option. Can be overriden in cases where implementation is required.
+    /// </summary>
+    public class BaseOperation
+    {
+        /// <inheritdoc/>
+        public virtual Task<IAsyncCursor<byte[]>> ExecuteBytesAsync(IReadBinding binding, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
+    /// <summary>
     /// Represents an aggregate explain operations.
     /// </summary>
-    public class AggregateExplainOperation : IReadOperation<BsonDocument>
+    public class AggregateExplainOperation : BaseOperation, IReadOperation<BsonDocument>
     {
         // fields
         private bool? _allowDiskUse;

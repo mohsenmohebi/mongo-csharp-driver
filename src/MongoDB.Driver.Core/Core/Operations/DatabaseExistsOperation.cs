@@ -26,7 +26,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Represents a database exists operation.
     /// </summary>
-    public class DatabaseExistsOperation : IReadOperation<bool>
+    public class DatabaseExistsOperation : BaseOperation, IReadOperation<bool>
     {
         // fields
         private DatabaseNamespace _databaseNamespace;

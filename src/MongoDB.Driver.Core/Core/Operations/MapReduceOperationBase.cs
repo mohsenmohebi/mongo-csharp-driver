@@ -29,7 +29,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Represents a base class for map-reduce operations.
     /// </summary>
-    public abstract class MapReduceOperationBase
+    public abstract class MapReduceOperationBase : BaseOperation
     {
         // fields
         private Collation _collation;

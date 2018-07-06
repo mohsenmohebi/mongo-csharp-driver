@@ -31,6 +31,11 @@ namespace MongoDB.Driver.Core.WireProtocol
         // fields
         private readonly long _cursorId;
         private readonly IReadOnlyList<TDocument> _documents;
+        
+        /// <summary>
+        /// ResponseBytes
+        /// </summary>
+        public byte[] ResponseBytes { get; set; }
 
         // constructors
         /// <summary>
@@ -44,6 +49,19 @@ namespace MongoDB.Driver.Core.WireProtocol
         {
             _cursorId = cursorId;
             _documents = Ensure.IsNotNull(documents, nameof(documents));
+            ResponseBytes = null;
+        }
+
+        // constructors
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CursorBatch{TDocument}"/> struct.
+        /// </summary>
+        /// <param name="docBytes">The documents.</param>        
+        public CursorBatch(byte[] docBytes)
+        {
+            _cursorId = 0;
+            _documents = null;
+            ResponseBytes = docBytes;
         }
 
         // properties

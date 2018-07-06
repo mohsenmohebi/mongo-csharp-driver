@@ -29,7 +29,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Represents the listDatabases command.
     /// </summary>
-    public class ListDatabasesOperation : IReadOperation<IAsyncCursor<BsonDocument>>
+    public class ListDatabasesOperation : BaseOperation, IReadOperation<IAsyncCursor<BsonDocument>>
     {
         // fields
         private BsonDocument _filter;

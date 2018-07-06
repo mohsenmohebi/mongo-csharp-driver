@@ -72,6 +72,9 @@ namespace MongoDB.Driver
         public abstract IFindFluent<TDocument, TProjection> Sort(SortDefinition<TDocument> sort);
 
         /// <inheritdoc />
+        public abstract Task<IAsyncCursor<byte[]>> ToByteCursorAsync(CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <inheritdoc />
         public virtual IAsyncCursor<TProjection> ToCursor(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();

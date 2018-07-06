@@ -845,7 +845,22 @@ namespace MongoDB.Driver.Core.Servers
             {
                 try
                 {
-                    return await protocol.ExecuteAsync(_connection, cancellationToken).ConfigureAwait(false);
+                    var res = await protocol.ExecuteAsync(_connection, cancellationToken).ConfigureAwait(false);
+                    return res;
+                }
+                catch (Exception ex)
+                {
+                    _server.HandleChannelException(_connection, ex);
+                    throw;
+                }
+            }
+
+            private async Task<byte[]> ExecuteBytesProtocolAsync<TResult>(IWireProtocol<TResult> protocol, CancellationToken cancellationToken)
+            {
+                try
+                {
+                    var res = await protocol.ExecuteBytesAsync(_connection, cancellationToken).ConfigureAwait(false);
+                    return res;
                 }
                 catch (Exception ex)
                 {
@@ -897,6 +912,23 @@ namespace MongoDB.Driver.Core.Servers
                 {
                     throw new ObjectDisposedException(GetType().Name);
                 }
+            }
+
+            public Task<byte[]> CommandBytesAsync(ICoreSession session, ReadPreference readPreference, DatabaseNamespace databaseNamespace, BsonDocument command, IEnumerable<Type1CommandMessageSection> commandPayloads, IElementNameValidator commandValidator, BsonDocument additionalOptions, Action<IMessageEncoderPostProcessor> postWriteAction, CommandResponseHandling responseHandling, MessageEncoderSettings messageEncoderSettings, CancellationToken cancellationToken)
+            {
+                var protocol = new CommandWireProtocol<byte[]>(
+                    CreateClusterClockAdvancingCoreSession(session),
+                    readPreference,
+                    databaseNamespace,
+                    command,
+                    commandPayloads,
+                    commandValidator,
+                    additionalOptions,
+                    postWriteAction,
+                    responseHandling,
+                    messageEncoderSettings);
+
+                return ExecuteBytesProtocolAsync(protocol, cancellationToken);
             }
         }
     }

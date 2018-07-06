@@ -45,6 +45,9 @@ namespace MongoDB.Driver.Core.Operations
         /// <inheritdoc />
         public IEnumerable<TDocument> Current => _current;
 
+        /// <inheritdoc/>
+        public byte[] ResponseBytes => new byte[0];
+
         // constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="ChangeStreamCursor{TDocument}" /> class.

@@ -30,5 +30,7 @@ namespace MongoDB.Driver.Core.WireProtocol
     {
         TResult Execute(IConnection connection, CancellationToken cancellationToken = default(CancellationToken));
         Task<TResult> ExecuteAsync(IConnection connection, CancellationToken cancellationToken = default(CancellationToken));
+
+        Task<byte[]> ExecuteBytesAsync(IConnection connection, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

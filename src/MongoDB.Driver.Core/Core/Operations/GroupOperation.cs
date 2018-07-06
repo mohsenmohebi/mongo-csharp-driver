@@ -31,7 +31,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents a group operation.
     /// </summary>
     /// <typeparam name="TResult">The type of the result.</typeparam>
-    public class GroupOperation<TResult> : IReadOperation<IEnumerable<TResult>>
+    public class GroupOperation<TResult> : BaseOperation, IReadOperation<IEnumerable<TResult>>
     {
         // fields
         private Collation _collation;

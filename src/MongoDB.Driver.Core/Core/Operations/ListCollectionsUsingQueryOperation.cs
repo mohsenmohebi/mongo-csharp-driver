@@ -30,7 +30,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Represents a list collections operation.
     /// </summary>
-    public class ListCollectionsUsingQueryOperation : IReadOperation<IAsyncCursor<BsonDocument>>
+    public class ListCollectionsUsingQueryOperation : BaseOperation, IReadOperation<IAsyncCursor<BsonDocument>>
     {
         // fields
         private BsonDocument _filter;

@@ -28,7 +28,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents a Find operation.
     /// </summary>
     /// <typeparam name="TDocument">The type of the returned documents.</typeparam>
-    public class FindOperation<TDocument> : IReadOperation<IAsyncCursor<TDocument>>
+    public class FindOperation<TDocument> : BaseOperation, IReadOperation<IAsyncCursor<TDocument>>
     {
         // fields
         private bool? _allowPartialResults;
@@ -440,6 +440,20 @@ namespace MongoDB.Driver.Core.Operations
             {
                 var operation = CreateOperation(channel.ConnectionDescription.ServerVersion);
                 return await operation.ExecuteAsync(channelBinding, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async Task<IAsyncCursor<byte[]>> ExecuteBytesAsync(IReadBinding binding, CancellationToken cancellationToken)
+        {
+            Ensure.IsNotNull(binding, nameof(binding));
+
+            using (var channelSource = await binding.GetReadChannelSourceAsync(cancellationToken).ConfigureAwait(false))
+            using (var channel = await channelSource.GetChannelAsync(cancellationToken).ConfigureAwait(false))
+            using (var channelBinding = new ChannelReadBinding(channelSource.Server, channel, binding.ReadPreference, binding.Session.Fork()))
+            {
+                var operation = CreateOperation(channel.ConnectionDescription.ServerVersion);
+                return await operation.ExecuteBytesAsync(channelBinding, cancellationToken).ConfigureAwait(false);
             }
         }
 

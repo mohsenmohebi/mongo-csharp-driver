@@ -14,6 +14,8 @@
 */
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MongoDB.Driver
 {
@@ -31,6 +33,16 @@ namespace MongoDB.Driver
             : base(derivedDocumentCollection, ofTypeFilter)
         {
             _rootDocumentCollection = rootDocumentCollection;
+        }
+
+        public override Task<IAsyncCursor<byte[]>> FindBytesAsync<TProjection>(FilterDefinition<TDerivedDocument> filter, FindOptions<TDerivedDocument, TProjection> options = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<IAsyncCursor<byte[]>> FindBytesAsync<TProjection>(IClientSessionHandle session, FilterDefinition<TDerivedDocument> filter, FindOptions<TDerivedDocument, TProjection> options = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            throw new NotImplementedException();
         }
 
         // public methods

@@ -72,7 +72,7 @@ namespace MongoDB.Driver.Core.Operations
     /// A change stream operation.
     /// </summary>
     /// <typeparam name="TResult">The type of the result values.</typeparam>
-    public class ChangeStreamOperation<TResult> : IChangeStreamOperation<TResult>
+    public class ChangeStreamOperation<TResult> : BaseOperation, IChangeStreamOperation<TResult>
     {
         // private fields
         private int? _batchSize;

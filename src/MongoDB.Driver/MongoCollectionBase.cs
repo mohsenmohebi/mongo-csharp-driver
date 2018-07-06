@@ -846,5 +846,11 @@ namespace MongoDB.Driver
 
         /// <inheritdoc />
         public abstract IMongoCollection<TDocument> WithWriteConcern(WriteConcern writeConcern);
+
+        /// <inheritdoc />
+        public abstract Task<IAsyncCursor<byte[]>> FindBytesAsync<TProjection>(FilterDefinition<TDocument> filter, FindOptions<TDocument, TProjection> options = null, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <inheritdoc />
+        public abstract Task<IAsyncCursor<byte[]>> FindBytesAsync<TProjection>(IClientSessionHandle session, FilterDefinition<TDocument> filter, FindOptions<TDocument, TProjection> options = null, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

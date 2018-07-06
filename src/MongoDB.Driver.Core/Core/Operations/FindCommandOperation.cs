@@ -35,7 +35,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents a Find command operation.
     /// </summary>
     /// <typeparam name="TDocument">The type of the document.</typeparam>
-    public class FindCommandOperation<TDocument> : IReadOperation<IAsyncCursor<TDocument>>
+    public class FindCommandOperation<TDocument> : BaseOperation, IReadOperation<IAsyncCursor<TDocument>>
     {
         #region static
         // private static fields
@@ -472,6 +472,23 @@ namespace MongoDB.Driver.Core.Operations
                 _cursorType == CursorType.TailableAwait ? _maxAwaitTime : null);
         }
 
+        private AsyncCursor<byte[]> CreateBytesCursor(IChannelSourceHandle channelSource, byte[] commandResult)
+        {
+            var getMoreChannelSource = new ServerChannelSource(channelSource.Server, channelSource.Session.Fork());
+            var firstBatch = CreateCursorBatch(commandResult);
+
+            return new AsyncCursor<byte[]>(
+                getMoreChannelSource,
+                _collectionNamespace,
+                _filter ?? new BsonDocument(),
+                commandResult,
+                firstBatch.CursorId,
+                _batchSize,
+                _limit < 0 ? Math.Abs(_limit.Value) : _limit,
+                _messageEncoderSettings,
+                _cursorType == CursorType.TailableAwait ? _maxAwaitTime : null);
+        }
+
         private CursorBatch<TDocument> CreateCursorBatch(BsonDocument commandResult)
         {
             var cursorDocument = commandResult["cursor"].AsBsonDocument;
@@ -483,6 +500,12 @@ namespace MongoDB.Driver.Core.Operations
                 var documents = CursorBatchDeserializationHelper.DeserializeBatch(batch, _resultSerializer, _messageEncoderSettings);
                 return new CursorBatch<TDocument>(cursorId, documents);
             }
+        }
+
+        private CursorBatch<TDocument> CreateCursorBatch(byte[] commandResult)
+        {
+            var batch = new CursorBatch<TDocument>(commandResult);
+            return batch;
         }
 
         /// <inheritdoc/>
@@ -536,6 +559,27 @@ namespace MongoDB.Driver.Core.Operations
                 __findCommandResultSerializer,
                 _messageEncoderSettings);
             return operation;
+        }
+
+        /// <inheritdoc/>
+        public override async Task<IAsyncCursor<byte[]>> ExecuteBytesAsync(IReadBinding binding, CancellationToken cancellationToken)
+        {
+            Ensure.IsNotNull(binding, nameof(binding));
+
+            using (EventContext.BeginOperation())
+            using (var channelSource = await binding.GetReadChannelSourceAsync(cancellationToken).ConfigureAwait(false))
+            using (var channel = await channelSource.GetChannelAsync(cancellationToken).ConfigureAwait(false))
+            using (var channelBinding = new ChannelReadBinding(channelSource.Server, channel, binding.ReadPreference, binding.Session.Fork()))
+            {
+                var readPreference = binding.ReadPreference;
+
+                using (EventContext.BeginFind(_batchSize, _limit))
+                {
+                    var operation = CreateOperation(channel, channelBinding);
+                    var commandResult = await operation.ExecuteBytesAsync(channelBinding, cancellationToken).ConfigureAwait(false);
+                    return CreateBytesCursor(channelSource, commandResult);
+                }
+            }
         }
     }
 }

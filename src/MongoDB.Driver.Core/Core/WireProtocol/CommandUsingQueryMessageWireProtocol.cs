@@ -370,6 +370,11 @@ namespace MongoDB.Driver.Core.WireProtocol
             }
         }
 
+        public Task<byte[]> ExecuteBytesAsync(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            throw new NotImplementedException();
+        }
+
         // nested types
         private class IgnoredReply
         {

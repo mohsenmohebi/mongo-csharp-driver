@@ -177,6 +177,18 @@ namespace MongoDB.Driver
             }
         }
 
+        public override Task<IAsyncCursor<byte[]>> ToByteCursorAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            if (_session == null)
+            {
+                return _collection.FindBytesAsync(_filter, _options, cancellationToken);
+            }
+            else
+            {
+                return _collection.FindBytesAsync(_session, _filter, _options, cancellationToken);
+            }
+        }
+
         public override string ToString()
         {
             var sb = new StringBuilder("find(");

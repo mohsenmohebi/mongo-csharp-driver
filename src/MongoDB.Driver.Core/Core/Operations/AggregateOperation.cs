@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,7 +36,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents an aggregate operation.
     /// </summary>
     /// <typeparam name="TResult">The type of the result values.</typeparam>
-    public class AggregateOperation<TResult> : IReadOperation<IAsyncCursor<TResult>>
+    public class AggregateOperation<TResult> : BaseOperation, IReadOperation<IAsyncCursor<TResult>>
     {
         // fields
         private bool? _allowDiskUse;

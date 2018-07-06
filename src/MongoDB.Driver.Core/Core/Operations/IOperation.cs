@@ -45,8 +45,16 @@ namespace MongoDB.Driver.Core.Operations
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A Task whose result is the result of the operation.</returns>
         Task<TResult> ExecuteAsync(IReadBinding binding, CancellationToken cancellationToken);
-    }
 
+        /// <summary>
+        /// Executes the operation.
+        /// </summary>
+        /// <param name="binding">The binding.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A Task whose result is the result of the operation.</returns>        
+        Task<IAsyncCursor<byte[]>> ExecuteBytesAsync(IReadBinding binding, CancellationToken cancellationToken);
+
+    }
     /// <summary>
     /// Represents a database write operation.
     /// </summary>

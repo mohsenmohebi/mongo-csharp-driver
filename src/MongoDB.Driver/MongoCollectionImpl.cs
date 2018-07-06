@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -355,6 +356,21 @@ namespace MongoDB.Driver
 
             var operation = CreateFindOperation<TProjection>(filter, options);
             return ExecuteReadOperationAsync(session, operation, cancellationToken);
+        }
+
+        public override Task<IAsyncCursor<byte[]>> FindBytesAsync<TProjection>(FilterDefinition<TDocument> filter, FindOptions<TDocument, TProjection> options, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return UsingImplicitSessionAsync(session => FindBytesAsync(session, filter, options, cancellationToken), cancellationToken);
+        }
+
+        public override Task<IAsyncCursor<byte[]>> FindBytesAsync<TProjection>(IClientSessionHandle session, FilterDefinition<TDocument> filter, FindOptions<TDocument, TProjection> options, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            Ensure.IsNotNull(session, nameof(session));
+            Ensure.IsNotNull(filter, nameof(filter));
+            options = options ?? new FindOptions<TDocument, TProjection>();
+
+            var operation = CreateFindOperation<TProjection>(filter, options);
+            return ExecuteBytesReadOperationAsync(session, operation, cancellationToken);
         }
 
         public override TProjection FindOneAndDelete<TProjection>(FilterDefinition<TDocument> filter, FindOneAndDeleteOptions<TDocument, TProjection> options, CancellationToken cancellationToken = default(CancellationToken))
@@ -1048,11 +1064,25 @@ namespace MongoDB.Driver
             return ExecuteReadOperationAsync(session, operation, effectiveReadPreference, cancellationToken);
         }
 
+        private Task<IAsyncCursor<byte[]>> ExecuteBytesReadOperationAsync<TResult>(IClientSessionHandle session, IReadOperation<TResult> operation, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var effectiveReadPreference = ReadPreferenceResolver.GetEffectiveReadPreference(session, null, _settings.ReadPreference);
+            return ExecuteBytesReadOperationAsync(session, operation, effectiveReadPreference, cancellationToken);
+        }
+
         private async Task<TResult> ExecuteReadOperationAsync<TResult>(IClientSessionHandle session, IReadOperation<TResult> operation, ReadPreference readPreference, CancellationToken cancellationToken = default(CancellationToken))
         {
             using (var binding = CreateReadBinding(session, readPreference))
             {
                 return await _operationExecutor.ExecuteReadOperationAsync(binding, operation, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<IAsyncCursor<byte[]>> ExecuteBytesReadOperationAsync<TResult>(IClientSessionHandle session, IReadOperation<TResult> operation, ReadPreference readPreference, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            using (var binding = CreateReadBinding(session, readPreference))
+            {
+                return await _operationExecutor.ExecuteBytesReadOperationAsync(binding, operation, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1132,7 +1162,8 @@ namespace MongoDB.Driver
         {
             using (var session = await _operationExecutor.StartImplicitSessionAsync(cancellationToken).ConfigureAwait(false))
             {
-                return await funcAsync(session).ConfigureAwait(false);
+                var res = await funcAsync(session).ConfigureAwait(false);
+                return res;
             }
         }
 

@@ -29,7 +29,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Represents a list indexes operation.
     /// </summary>
-    public class ListIndexesUsingQueryOperation : IReadOperation<IAsyncCursor<BsonDocument>>
+    public class ListIndexesUsingQueryOperation : BaseOperation, IReadOperation<IAsyncCursor<BsonDocument>>
     {
         // fields
         private readonly CollectionNamespace _collectionNamespace;

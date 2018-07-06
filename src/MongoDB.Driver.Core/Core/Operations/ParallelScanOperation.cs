@@ -34,7 +34,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents a parallel scan operation.
     /// </summary>
     /// <typeparam name="TDocument">The type of the document.</typeparam>
-    public class ParallelScanOperation<TDocument> : IReadOperation<IReadOnlyList<IAsyncCursor<TDocument>>>
+    public class ParallelScanOperation<TDocument> : BaseOperation, IReadOperation<IReadOnlyList<IAsyncCursor<TDocument>>>
     {
         // fields
         private int? _batchSize;

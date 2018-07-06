@@ -30,7 +30,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents the geoNear command.
     /// </summary>
     /// <typeparam name="TResult">The type of the result.</typeparam>
-    public sealed class GeoNearOperation<TResult> : IReadOperation<TResult>
+    public sealed class GeoNearOperation<TResult> : BaseOperation, IReadOperation<TResult>
     {
         private Collation _collation;
         private readonly CollectionNamespace _collectionNamespace;

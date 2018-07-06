@@ -50,6 +50,11 @@ namespace MongoDB.Driver
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A Task whose result indicates whether any more documents are available.</returns>
         Task<bool> MoveNextAsync(CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>
+        /// Response Bytes
+        /// </summary>
+        byte[] ResponseBytes { get; }
     }
 
     /// <summary>

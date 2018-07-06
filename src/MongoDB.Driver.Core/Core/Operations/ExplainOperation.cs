@@ -27,7 +27,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Represents an explain operation.
     /// </summary>
-    public class ExplainOperation : IReadOperation<BsonDocument>, IWriteOperation<BsonDocument>
+    public class ExplainOperation : BaseOperation, IReadOperation<BsonDocument>, IWriteOperation<BsonDocument>
     {
         // fields
         private readonly DatabaseNamespace _databaseNamespace;

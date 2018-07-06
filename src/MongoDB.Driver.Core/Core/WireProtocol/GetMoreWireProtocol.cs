@@ -96,5 +96,10 @@ namespace MongoDB.Driver.Core.WireProtocol
 
             return new CursorBatch<TDocument>(reply.CursorId, reply.Documents);
         }
+
+        public Task<byte[]> ExecuteBytesAsync(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            throw new NotImplementedException();
+        }
     }
 }

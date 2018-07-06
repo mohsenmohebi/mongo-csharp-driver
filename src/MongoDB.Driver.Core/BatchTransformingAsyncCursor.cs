@@ -62,6 +62,9 @@ namespace MongoDB.Driver
             }
         }
 
+        /// <inheritdoc/>
+        public byte[] ResponseBytes => new byte[0];
+
         // methods
         /// <inheritdoc/>
         public bool MoveNext(CancellationToken cancellationToken)

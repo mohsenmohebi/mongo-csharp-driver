@@ -27,7 +27,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Abstract base class for AbortTransactionOperation and CommitTransactionOperation.
     /// </summary>
-    public abstract class EndTransactionOperation : IReadOperation<BsonDocument>
+    public abstract class EndTransactionOperation : BaseOperation, IReadOperation<BsonDocument>
     {
         // private fields
         private MessageEncoderSettings _messageEncoderSettings;

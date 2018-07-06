@@ -32,7 +32,7 @@ namespace MongoDB.Driver.Core.Operations
     /// Represents a distinct operation.
     /// </summary>
     /// <typeparam name="TValue">The type of the value.</typeparam>
-    public class DistinctOperation<TValue> : IReadOperation<IAsyncCursor<TValue>>
+    public class DistinctOperation<TValue> : BaseOperation, IReadOperation<IAsyncCursor<TValue>>
     {
         // fields
         private Collation _collation;

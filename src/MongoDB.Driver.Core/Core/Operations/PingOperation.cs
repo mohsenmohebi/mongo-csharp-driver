@@ -27,7 +27,7 @@ namespace MongoDB.Driver.Core.Operations
     /// <summary>
     /// Represents a ping operation.
     /// </summary>
-    public class PingOperation : IReadOperation<BsonDocument>
+    public class PingOperation : BaseOperation, IReadOperation<BsonDocument>
     {
         // fields
         private MessageEncoderSettings _messageEncoderSettings;

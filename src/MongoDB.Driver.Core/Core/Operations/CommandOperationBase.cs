@@ -14,6 +14,7 @@
 */
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using MongoDB.Bson;
@@ -204,6 +205,24 @@ namespace MongoDB.Driver.Core.Operations
                 cancellationToken);
         }
 
+        private Task<byte[]> ExecuteBytesProtocolAsync(IChannelHandle channel, ICoreSessionHandle session, ReadPreference readPreference, CancellationToken cancellationToken)
+        {
+            var additionalOptions = GetEffectiveAdditionalOptions();
+
+            return channel.CommandBytesAsync(
+                session,
+                readPreference,
+                _databaseNamespace,
+                _command,
+                null, // TODO: support commandPayloads
+                _commandValidator,
+                additionalOptions,
+                null, // postWriteAction,
+                CommandResponseHandling.Return,
+                _messageEncoderSettings,
+                cancellationToken);
+        }
+
         /// <summary>
         /// Executes the protocol.
         /// </summary>
@@ -222,7 +241,31 @@ namespace MongoDB.Driver.Core.Operations
         {
             using (var channel = await channelSource.GetChannelAsync(cancellationToken).ConfigureAwait(false))
             {
-                return await ExecuteProtocolAsync(channel, session, readPreference, cancellationToken).ConfigureAwait(false);
+                var res = await ExecuteProtocolAsync(channel, session, readPreference, cancellationToken).ConfigureAwait(false);
+                return res;
+            }
+        }
+
+        /// <summary>
+        /// Executes the protocol.
+        /// </summary>
+        /// <param name="channelSource">The channel source.</param>
+        /// <param name="session">The session.</param>
+        /// <param name="readPreference">The read preference.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>
+        /// A Task whose result is the command result.
+        /// </returns>
+        protected async Task<byte[]> ExecuteBytesProtocolAsync(
+            IChannelSource channelSource,
+            ICoreSessionHandle session,
+            ReadPreference readPreference,
+            CancellationToken cancellationToken)
+        {
+            using (var channel = await channelSource.GetChannelAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var res = await ExecuteBytesProtocolAsync(channel, session, readPreference, cancellationToken).ConfigureAwait(false);
+                return res;
             }
         }
 

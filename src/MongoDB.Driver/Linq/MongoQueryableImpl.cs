@@ -88,5 +88,10 @@ namespace MongoDB.Driver.Linq
             var pipeline = GetExecutionModel();
             return pipeline.ToString();
         }
+
+        public Task<IAsyncCursor<byte[]>> ToByteCursorAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            throw new NotImplementedException();
+        }
     }
 }

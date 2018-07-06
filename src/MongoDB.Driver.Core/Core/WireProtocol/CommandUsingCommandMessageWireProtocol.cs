@@ -15,6 +15,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -79,6 +81,35 @@ namespace MongoDB.Driver.Core.WireProtocol
             _postWriteAction = postWriteAction; // can be null
         }
 
+        public CommandUsingCommandMessageWireProtocol(
+            ICoreSession session,
+            ReadPreference readPreference,
+            DatabaseNamespace databaseNamespace,
+            BsonDocument command,
+            IEnumerable<Type1CommandMessageSection> commandPayloads,
+            IElementNameValidator commandValidator,
+            BsonDocument additionalOptions,
+            CommandResponseHandling responseHandling,
+            MessageEncoderSettings messageEncoderSettings,
+            Action<IMessageEncoderPostProcessor> postWriteAction)
+        {
+            if (responseHandling != CommandResponseHandling.Return && responseHandling != CommandResponseHandling.NoResponseExpected)
+            {
+                throw new ArgumentException("CommandResponseHandling must be Return or NoneExpected.", nameof(responseHandling));
+            }
+
+            _session = Ensure.IsNotNull(session, nameof(session));
+            _readPreference = readPreference;
+            _databaseNamespace = Ensure.IsNotNull(databaseNamespace, nameof(databaseNamespace));
+            _command = Ensure.IsNotNull(command, nameof(command));
+            _commandPayloads = commandPayloads?.ToList(); // can be null
+            _commandValidator = Ensure.IsNotNull(commandValidator, nameof(commandValidator));
+            _additionalOptions = additionalOptions; // can be null
+            _responseHandling = responseHandling;
+            _messageEncoderSettings = messageEncoderSettings;
+            _postWriteAction = postWriteAction; // can be null
+        }
+
         // public methods
         public TCommandResult Execute(IConnection connection, CancellationToken cancellationToken)
         {
@@ -121,6 +152,8 @@ namespace MongoDB.Driver.Core.WireProtocol
 
                 try
                 {
+                    var doc = message.WrappedMessage.Sections.Single().ToBsonDocument();
+
                     await connection.SendMessageAsync(message, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
                 }
                 finally
@@ -132,11 +165,48 @@ namespace MongoDB.Driver.Core.WireProtocol
                 {
                     var encoderSelector = new CommandResponseMessageEncoderSelector();
                     var response = (CommandResponseMessage)await connection.ReceiveMessageAsync(message.RequestId, encoderSelector, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
-                    return ProcessResponse(connection.ConnectionId, response.WrappedMessage);
+                    var res = ProcessResponse(connection.ConnectionId, response.WrappedMessage);
+                    return res;
                 }
                 else
                 {
                     return default(TCommandResult);
+                }
+            }
+            catch (MongoException exception) when (ShouldAddTransientTransactionError(exception))
+            {
+                exception.AddErrorLabel("TransientTransactionError");
+                throw;
+            }
+        }
+
+        public async Task<byte[]> ExecuteBytesAsync(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            try
+            {
+                var message = CreateCommandMessage(connection.Description);
+
+                try
+                {
+                    var doc = message.WrappedMessage.Sections.Single().ToBsonDocument();
+
+                    await connection.SendMessageAsync(message, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    MessageWasProbablySent(message);
+                }
+
+                if (message.WrappedMessage.ResponseExpected)
+                {
+                    var encoderSelector = new CommandResponseMessageEncoderSelector();
+                    var response = (CommandResponseMessage)await connection.ReceiveMessageAsync(message.RequestId, encoderSelector, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
+                    var res = ProcessBytesResponse(connection.ConnectionId, response.WrappedMessage);
+                    return res;
+                }
+                else
+                {
+                    return default(byte[]);
                 }
             }
             catch (MongoException exception) when (ShouldAddTransientTransactionError(exception))
@@ -242,8 +312,9 @@ namespace MongoDB.Driver.Core.WireProtocol
         {
             using (new CommandMessageDisposer(responseMessage))
             {
+                var docsw = Stopwatch.StartNew();
                 var rawDocument = responseMessage.Sections.OfType<Type0CommandMessageSection<RawBsonDocument>>().Single().Document;
-
+                
                 var binaryReaderSettings = new BsonBinaryReaderSettings();
                 if (_messageEncoderSettings != null)
                 {
@@ -308,7 +379,91 @@ namespace MongoDB.Driver.Core.WireProtocol
                     using (var reader = new BsonBinaryReader(stream, binaryReaderSettings))
                     {
                         var context = BsonDeserializationContext.CreateRoot(reader);
-                        return _resultSerializer.Deserialize(context);
+                        var sw = Stopwatch.StartNew();
+                        var doc = _resultSerializer.Deserialize(context);
+                        Debug.WriteLine($"MONGO_DRIVER:CUCMWP -> Network stream deserialized in {sw.ElapsedMilliseconds} ms.");
+                        return doc;
+                    }
+                }
+            }
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
+        private byte[] ProcessBytesResponse(ConnectionId connectionId, CommandMessage responseMessage)
+        {
+            using (new CommandMessageDisposer(responseMessage))
+            {
+                var docsw = Stopwatch.StartNew();
+                var rawDocument = responseMessage.Sections.OfType<Type0CommandMessageSection<RawBsonDocument>>().Single().Document;
+
+                var binaryReaderSettings = new BsonBinaryReaderSettings();
+                if (_messageEncoderSettings != null)
+                {
+                    binaryReaderSettings.Encoding = _messageEncoderSettings.GetOrDefault<UTF8Encoding>(MessageEncoderSettingsName.ReadEncoding, Utf8Encodings.Strict);
+                    binaryReaderSettings.GuidRepresentation = _messageEncoderSettings.GetOrDefault<GuidRepresentation>(MessageEncoderSettingsName.GuidRepresentation, GuidRepresentation.CSharpLegacy);
+                };
+
+                BsonValue clusterTime;
+                if (rawDocument.TryGetValue("$clusterTime", out clusterTime))
+                {
+                    // note: we are assuming that _session is an instance of ClusterClockAdvancingClusterTime
+                    // and that calling _session.AdvanceClusterTime will have the side effect of advancing the cluster's ClusterTime also
+                    var materializedClusterTime = ((RawBsonDocument)clusterTime).Materialize(binaryReaderSettings);
+                    _session.AdvanceClusterTime(materializedClusterTime);
+                }
+
+                BsonValue operationTime;
+                if (rawDocument.TryGetValue("operationTime", out operationTime))
+                {
+                    _session.AdvanceOperationTime(operationTime.AsBsonTimestamp);
+                }
+
+                if (!rawDocument.GetValue("ok", false).ToBoolean())
+                {
+                    var materializedDocument = rawDocument.Materialize(binaryReaderSettings);
+
+                    var commandName = _command.GetElement(0).Name;
+                    if (commandName == "$query")
+                    {
+                        commandName = _command["$query"].AsBsonDocument.GetElement(0).Name;
+                    }
+
+                    var notPrimaryOrNodeIsRecoveringException = ExceptionMapper.MapNotPrimaryOrNodeIsRecovering(connectionId, _command, materializedDocument, "errmsg");
+                    if (notPrimaryOrNodeIsRecoveringException != null)
+                    {
+                        throw notPrimaryOrNodeIsRecoveringException;
+                    }
+
+                    var mappedException = ExceptionMapper.Map(connectionId, materializedDocument);
+                    if (mappedException != null)
+                    {
+                        throw mappedException;
+                    }
+
+                    string message;
+                    BsonValue errmsgBsonValue;
+                    if (materializedDocument.TryGetValue("errmsg", out errmsgBsonValue) && errmsgBsonValue.IsString)
+                    {
+                        var errmsg = errmsgBsonValue.ToString();
+                        message = string.Format("Command {0} failed: {1}.", commandName, errmsg);
+                    }
+                    else
+                    {
+                        message = string.Format("Command {0} failed.", commandName);
+                    }
+
+                    throw new MongoCommandException(connectionId, message, _command, materializedDocument);
+                }
+
+                using (var stream = new ByteBufferStream(rawDocument.Slice, ownsBuffer: false))
+                {
+                    using (var memStream = new MemoryStream())
+                    {
+                        var swmem = Stopwatch.StartNew();
+                        stream.CopyTo(memStream);
+                        var arr = memStream.ToArray();
+                        Debug.WriteLine($"MONGO_DRIVER:CUCMWP -> Network stream to ({arr.Length}) bytes in memory in {swmem.ElapsedMilliseconds} ms.");
+                        return arr;
                     }
                 }
             }
