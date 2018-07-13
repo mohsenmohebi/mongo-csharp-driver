@@ -144,6 +144,39 @@ namespace MongoDB.Driver.Core.WireProtocol
             }
         }
 
+        public byte[] ExecuteBytes(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            try
+            {
+                var message = CreateCommandMessage(connection.Description);
+
+                try
+                {
+                    connection.SendMessage(message, _messageEncoderSettings, cancellationToken);
+                }
+                finally
+                {
+                    MessageWasProbablySent(message);
+                }
+
+                if (message.WrappedMessage.ResponseExpected)
+                {
+                    var encoderSelector = new CommandResponseMessageEncoderSelector();
+                    var response = (CommandResponseMessage)connection.ReceiveMessage(message.RequestId, encoderSelector, _messageEncoderSettings, cancellationToken);
+                    return ProcessBytesResponse(connection.ConnectionId, response.WrappedMessage);
+                }
+                else
+                {
+                    return default(byte[]);
+                }
+            }
+            catch (MongoException exception) when (ShouldAddTransientTransactionError(exception))
+            {
+                exception.AddErrorLabel("TransientTransactionError");
+                throw;
+            }
+        }
+
         public async Task<TCommandResult> ExecuteAsync(IConnection connection, CancellationToken cancellationToken)
         {
             try

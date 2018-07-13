@@ -98,6 +98,18 @@ namespace MongoDB.Driver
             return _wrappedCollection.AggregateAsync(session, filteredPipeline, options, cancellationToken);
         }
 
+        public override Task<IAsyncCursor<byte[]>> AggregateBytesAsync<TResult>(PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var filteredPipeline = CreateFilteredPipeline(pipeline);
+            return _wrappedCollection.AggregateBytesAsync(filteredPipeline, options, cancellationToken);
+        }
+
+        public override Task<IAsyncCursor<byte[]>> AggregateBytesAsync<TResult>(IClientSessionHandle session, PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var filteredPipeline = CreateFilteredPipeline(pipeline);
+            return _wrappedCollection.AggregateBytesAsync(session, filteredPipeline, options, cancellationToken);
+        }
+
         public override BulkWriteResult<TDocument> BulkWrite(IEnumerable<WriteModel<TDocument>> requests, BulkWriteOptions options = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             return _wrappedCollection.BulkWrite(CombineModelFilters(requests), options, cancellationToken);

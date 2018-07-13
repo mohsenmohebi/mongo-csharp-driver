@@ -39,6 +39,14 @@ namespace MongoDB.Driver.Core.Operations
         TResult Execute(IReadBinding binding, CancellationToken cancellationToken);
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="binding"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        IAsyncCursor<byte[]> ExecuteBytes(IReadBinding binding, CancellationToken cancellationToken);
+
+        /// <summary>
         /// Executes the operation.
         /// </summary>
         /// <param name="binding">The binding.</param>

@@ -852,5 +852,11 @@ namespace MongoDB.Driver
 
         /// <inheritdoc />
         public abstract Task<IAsyncCursor<byte[]>> FindBytesAsync<TProjection>(IClientSessionHandle session, FilterDefinition<TDocument> filter, FindOptions<TDocument, TProjection> options = null, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <inheritdoc />
+        public abstract Task<IAsyncCursor<byte[]>> AggregateBytesAsync<TResult>(PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options = null, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <inheritdoc />
+        public abstract Task<IAsyncCursor<byte[]>> AggregateBytesAsync<TResult>(IClientSessionHandle session, PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options = null, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

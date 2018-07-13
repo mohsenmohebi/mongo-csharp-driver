@@ -268,6 +268,12 @@ namespace MongoDB.Driver.Core.Operations
         }
 
         /// <inheritdoc/>
+        public override IAsyncCursor<byte[]> ExecuteBytes(IReadBinding binding, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
         public async Task<IAsyncCursor<TResult>> ExecuteAsync(IReadBinding binding, CancellationToken cancellationToken)
         {
             Ensure.IsNotNull(binding, nameof(binding));
@@ -281,6 +287,23 @@ namespace MongoDB.Driver.Core.Operations
                 var operation = CreateOperation(channel, channelBinding);
                 var result = await operation.ExecuteAsync(channelBinding, cancellationToken).ConfigureAwait(false);
                 return CreateCursor(channelSource, channel, operation.Command, result);
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async Task<IAsyncCursor<byte[]>> ExecuteBytesAsync(IReadBinding binding, CancellationToken cancellationToken)
+        {
+            Ensure.IsNotNull(binding, nameof(binding));
+            EnsureIsReadOnlyPipeline();
+
+            using (EventContext.BeginOperation())
+            using (var channelSource = await binding.GetReadChannelSourceAsync(cancellationToken).ConfigureAwait(false))
+            using (var channel = await channelSource.GetChannelAsync(cancellationToken).ConfigureAwait(false))
+            using (var channelBinding = new ChannelReadBinding(channelSource.Server, channel, binding.ReadPreference, binding.Session.Fork()))
+            {
+                var operation = CreateOperation(channel, channelBinding);
+                var result = await operation.ExecuteBytesAsync(channelBinding, cancellationToken).ConfigureAwait(false);
+                return CreateBytesCursor(channelSource, channel, operation.Command, result);
             }
         }
 
@@ -351,6 +374,52 @@ namespace MongoDB.Driver.Core.Operations
                 return CreateCursorFromInlineResult(command, result);
             }
         }
+
+        private AsyncCursor<byte[]> CreateBytesCursor(IChannelSourceHandle channelSource, IChannelHandle channel, BsonDocument command, byte[] commandResult)
+        {
+            var getMoreChannelSource = new ServerChannelSource(channelSource.Server, channelSource.Session.Fork());
+
+            return new AsyncCursor<byte[]>(
+                getMoreChannelSource,
+                _collectionNamespace,
+                commandResult,
+                0);
+        }
+
+        private AsyncCursor<byte[]> CreateBytesCursorFromCursorResult(IChannelSourceHandle channelSource, BsonDocument command, AggregateResult result)
+        {
+            var getMoreChannelSource = new ServerChannelSource(channelSource.Server, channelSource.Session.Fork());
+
+            return null;
+            //return new AsyncCursor<byte[]>(
+            //    getMoreChannelSource,
+            //    result.CollectionNamespace,
+            //    command,
+            //    result.Results,
+            //    result.CursorId.GetValueOrDefault(0),
+            //    _batchSize,
+            //    null, // limit
+            //    _resultSerializer,
+            //    MessageEncoderSettings,
+            //    _maxAwaitTime);
+        }
+
+        private AsyncCursor<byte[]> CreateBytesCursorFromInlineResult(BsonDocument command, AggregateResult result)
+        {
+            return null;
+            //return new AsyncCursor<byte[]>(
+            //    null, // channelSource
+            //    CollectionNamespace,
+            //    command,
+            //    result.Results,
+            //    0, // cursorId
+            //    null, // batchSize
+            //    null, // limit
+            //    _resultSerializer,
+            //    MessageEncoderSettings,
+            //    _maxAwaitTime);
+        }
+
 
         private AsyncCursor<TResult> CreateCursorFromCursorResult(IChannelSourceHandle channelSource, BsonDocument command, AggregateResult result)
         {

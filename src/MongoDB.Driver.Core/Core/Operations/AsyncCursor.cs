@@ -155,6 +155,30 @@ namespace MongoDB.Driver.Core.Operations
             DisposeChannelSourceIfNoLongerNeeded();
         }
 
+        // constructors
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AsyncCursor{TDocument}"/> class.
+        /// </summary>
+        /// <param name="channelSource">The channel source.</param>
+        /// <param name="collectionNamespace">The collection namespace.</param>
+        /// <param name="responseBytes">The responseBytes.</param>
+        /// <param name="cursorId">The cursor identifier.</param>
+        public AsyncCursor(
+            IChannelSource channelSource,
+            CollectionNamespace collectionNamespace,
+            byte[] responseBytes,
+            long cursorId)
+        {
+            _operationId = EventContext.OperationId;
+            _channelSource = channelSource;
+            _collectionNamespace = Ensure.IsNotNull(collectionNamespace, nameof(collectionNamespace));
+            _cursorId = cursorId;
+
+            ResponseBytes = responseBytes;
+
+            DisposeChannelSourceIfNoLongerNeeded();
+        }
+
         // properties
         /// <inheritdoc/>
         public IEnumerable<TDocument> Current

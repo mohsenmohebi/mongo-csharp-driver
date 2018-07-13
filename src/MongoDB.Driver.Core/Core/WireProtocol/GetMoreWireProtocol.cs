@@ -101,5 +101,10 @@ namespace MongoDB.Driver.Core.WireProtocol
         {
             throw new NotImplementedException();
         }
+
+        public byte[] ExecuteBytes(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            throw new NotImplementedException();
+        }
     }
 }

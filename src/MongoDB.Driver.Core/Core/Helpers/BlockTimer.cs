@@ -82,6 +82,15 @@ namespace MongoDB.Driver.Core
         }
 
         /// <summary>
+        /// Returns time for the current subroutine if any.
+        /// </summary>
+        /// <returns></returns>
+        public long GetSubTime()
+        {
+            return _sw.ElapsedMilliseconds - _subTimeMs;
+        }
+
+        /// <summary>
         /// On complete...
         /// </summary>
         public void Dispose()

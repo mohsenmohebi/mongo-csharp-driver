@@ -828,6 +828,19 @@ namespace MongoDB.Driver.Core.Servers
                 }
             }
 
+            private byte[] ExecuteBytesProtocol<TResult>(IWireProtocol<TResult> protocol, CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return protocol.ExecuteBytes(_connection, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _server.HandleChannelException(_connection, ex);
+                    throw;
+                }
+            }
+
             private async Task ExecuteProtocolAsync(IWireProtocol protocol, CancellationToken cancellationToken)
             {
                 try
@@ -927,6 +940,24 @@ namespace MongoDB.Driver.Core.Servers
                     messageEncoderSettings);
 
                 return ExecuteBytesProtocolAsync(protocol, cancellationToken);
+            }
+
+            public byte[] CommandBytes<TResult>(ICoreSession session, ReadPreference readPreference, DatabaseNamespace databaseNamespace, BsonDocument command, IEnumerable<Type1CommandMessageSection> commandPayloads, IElementNameValidator commandValidator, BsonDocument additionalOptions, Action<IMessageEncoderPostProcessor> postWriteAction, CommandResponseHandling responseHandling, IBsonSerializer<TResult> resultSerializer, MessageEncoderSettings messageEncoderSettings, CancellationToken cancellationToken)
+            {
+                var protocol = new CommandWireProtocol<TResult>(
+                    CreateClusterClockAdvancingCoreSession(session),
+                    readPreference,
+                    databaseNamespace,
+                    command,
+                    commandPayloads,
+                    commandValidator,
+                    additionalOptions,
+                    postWriteAction,
+                    responseHandling,
+                    resultSerializer,
+                    messageEncoderSettings);
+
+                return ExecuteBytesProtocol(protocol, cancellationToken);
             }
         }
     }

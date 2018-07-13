@@ -66,6 +66,18 @@ namespace MongoDB.Driver.Core.Operations
         }
 
         /// <inheritdoc/>
+        public byte[] ExecuteBytes(IReadBinding binding, CancellationToken cancellationToken)
+        {
+            Ensure.IsNotNull(binding, nameof(binding));
+
+            using (EventContext.BeginOperation())
+            using (var channelSource = binding.GetReadChannelSource(cancellationToken))
+            {
+                return ExecuteBytesProtocol(channelSource, binding.Session, binding.ReadPreference, cancellationToken);
+            }
+        }
+
+        /// <inheritdoc/>
         public async Task<TCommandResult> ExecuteAsync(IReadBinding binding, CancellationToken cancellationToken)
         {
             Ensure.IsNotNull(binding, nameof(binding));
@@ -90,16 +102,14 @@ namespace MongoDB.Driver.Core.Operations
             }
         }
 
-        async Task<IAsyncCursor<byte[]>> IReadOperation<TCommandResult>.ExecuteBytesAsync(IReadBinding binding, CancellationToken cancellationToken)
+        Task<IAsyncCursor<byte[]>> IReadOperation<TCommandResult>.ExecuteBytesAsync(IReadBinding binding, CancellationToken cancellationToken)
         {
-            Ensure.IsNotNull(binding, nameof(binding));
+            throw new NotImplementedException();
+        }
 
-            using (EventContext.BeginOperation())
-            using (var channelSource = await binding.GetReadChannelSourceAsync(cancellationToken).ConfigureAwait(false))
-            {
-                var res = await ExecuteBytesProtocolAsync(channelSource, binding.Session, binding.ReadPreference, cancellationToken).ConfigureAwait(false);
-                throw new NotImplementedException();
-            }
+        IAsyncCursor<byte[]> IReadOperation<TCommandResult>.ExecuteBytes(IReadBinding binding, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
         }
     }
 }

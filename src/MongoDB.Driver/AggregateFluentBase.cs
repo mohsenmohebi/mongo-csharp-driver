@@ -192,9 +192,6 @@ namespace MongoDB.Driver
         public abstract Task<IAsyncCursor<TResult>> ToCursorAsync(CancellationToken cancellationToken);
 
         /// <inheritdoc />
-        public Task<IAsyncCursor<byte[]>> ToByteCursorAsync(CancellationToken cancellationToken = default(CancellationToken))
-        {
-            throw new NotImplementedException();
-        }
+        public abstract Task<IAsyncCursor<byte[]>> ToByteCursorAsync(CancellationToken cancellationToken);
     }
 }

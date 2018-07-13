@@ -24,6 +24,7 @@ namespace MongoDB.Driver
     internal interface IOperationExecutor
     {
         TResult ExecuteReadOperation<TResult>(IReadBinding binding, IReadOperation<TResult> operation, CancellationToken cancellationToken);
+        IAsyncCursor<byte[]> ExecuteBytesReadOperation<TResult>(IReadBinding binding, IReadOperation<TResult> operation, CancellationToken cancellationToken);
         Task<TResult> ExecuteReadOperationAsync<TResult>(IReadBinding binding, IReadOperation<TResult> operation, CancellationToken cancellationToken);
         Task<IAsyncCursor<byte[]>> ExecuteBytesReadOperationAsync<TResult>(IReadBinding binding, IReadOperation<TResult> operation, CancellationToken cancellationToken);
 

@@ -160,6 +160,28 @@ namespace MongoDB.Driver.Core.WireProtocol
             }
         }
 
+        public byte[] ExecuteBytes(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            bool messageContainsSessionId;
+            var message = CreateMessage(connection.Description, out messageContainsSessionId);
+            connection.SendMessage(message, _messageEncoderSettings, cancellationToken);
+            if (messageContainsSessionId)
+            {
+                _session.WasUsed();
+            }
+
+            switch (message.ResponseHandling)
+            {
+                case CommandResponseHandling.Ignore:
+                    IgnoreResponse(connection, message, cancellationToken);
+                    return default(byte[]);
+                default:
+                    var encoderSelector = new ReplyMessageEncoderSelector<RawBsonDocument>(RawBsonDocumentSerializer.Instance);
+                    var reply = connection.ReceiveMessage(message.RequestId, encoderSelector, _messageEncoderSettings, cancellationToken);
+                    return ProcessBytesReply(connection.ConnectionId, (ReplyMessage<RawBsonDocument>)reply);
+            }
+        }
+
         public async Task<TCommandResult> ExecuteAsync(IConnection connection, CancellationToken cancellationToken)
         {
             bool messageContainsSessionId;

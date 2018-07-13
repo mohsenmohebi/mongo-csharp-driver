@@ -37,6 +37,12 @@ namespace MongoDB.Driver.Core.Operations
         {
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc/>
+        public virtual IAsyncCursor<byte[]> ExecuteBytes(IReadBinding binding, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 

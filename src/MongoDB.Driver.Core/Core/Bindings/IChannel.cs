@@ -134,6 +134,39 @@ namespace MongoDB.Driver.Core.Bindings
         /// Executes a Command protocol.
         /// </summary>
         /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="session">The session.</param>
+        /// <param name="readPreference">The read preference.</param>
+        /// <param name="databaseNamespace">The database namespace.</param>
+        /// <param name="command">The command.</param>
+        /// <param name="commandPayloads">The command payloads.</param>
+        /// <param name="commandValidator">The command validator.</param>
+        /// <param name="additionalOptions">The additional options.</param>
+        /// <param name="postWriteAction">The post write action.</param>
+        /// <param name="responseHandling">The response handling.</param>
+        /// <param name="resultSerializer">The result serializer.</param>
+        /// <param name="messageEncoderSettings">The message encoder settings.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>
+        /// The result of the Command protocol.
+        /// </returns>
+        byte[] CommandBytes<TResult>(
+            ICoreSession session,
+            ReadPreference readPreference,
+            DatabaseNamespace databaseNamespace,
+            BsonDocument command,
+            IEnumerable<Type1CommandMessageSection> commandPayloads,
+            IElementNameValidator commandValidator,
+            BsonDocument additionalOptions,
+            Action<IMessageEncoderPostProcessor> postWriteAction,
+            CommandResponseHandling responseHandling,
+            IBsonSerializer<TResult> resultSerializer,
+            MessageEncoderSettings messageEncoderSettings,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Executes a Command protocol.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="databaseNamespace">The database namespace.</param>
         /// <param name="command">The command.</param>
         /// <param name="commandValidator">The command validator.</param>

@@ -244,6 +244,18 @@ namespace MongoDB.Driver
             }
         }
 
+        public override Task<IAsyncCursor<byte[]>> ToByteCursorAsync(CancellationToken cancellationToken)
+        {
+            if (_session == null)
+            {
+                return _collection.AggregateBytesAsync(_pipeline, _options, cancellationToken);
+            }
+            else
+            {
+                return _collection.AggregateBytesAsync(_session, _pipeline, _options, cancellationToken);
+            }
+        }
+
         public override string ToString()
         {
             return $"aggregate({_pipeline})";

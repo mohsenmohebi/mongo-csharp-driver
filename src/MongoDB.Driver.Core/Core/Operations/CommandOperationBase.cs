@@ -164,6 +164,26 @@ namespace MongoDB.Driver.Core.Operations
                 cancellationToken);
         }
 
+        // methods
+        private byte[] ExecuteBytesProtocol(IChannelHandle channel, ICoreSessionHandle session, ReadPreference readPreference, CancellationToken cancellationToken)
+        {
+            var additionalOptions = GetEffectiveAdditionalOptions();
+
+            return channel.CommandBytes(
+                session,
+                readPreference,
+                _databaseNamespace,
+                _command,
+                null, // commandPayloads
+                _commandValidator,
+                additionalOptions,
+                null, // postWriteAction,
+                CommandResponseHandling.Return,
+                _resultSerializer,
+                _messageEncoderSettings,
+                cancellationToken);
+        }
+
         /// <summary>
         /// Executes the protocol.
         /// </summary>
@@ -183,6 +203,26 @@ namespace MongoDB.Driver.Core.Operations
             using (var channel = channelSource.GetChannel(cancellationToken))
             {
                 return ExecuteProtocol(channel, session, readPreference, cancellationToken);
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="channelSource"></param>
+        /// <param name="session"></param>
+        /// <param name="readPreference"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        protected byte[] ExecuteBytesProtocol(
+            IChannelSource channelSource,
+            ICoreSessionHandle session,
+            ReadPreference readPreference,
+            CancellationToken cancellationToken)
+        {
+            using (var channel = channelSource.GetChannel(cancellationToken))
+            {
+                return ExecuteBytesProtocol(channel, session, readPreference, cancellationToken);
             }
         }
 

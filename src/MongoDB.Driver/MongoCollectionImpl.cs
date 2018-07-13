@@ -160,6 +160,40 @@ namespace MongoDB.Driver
             }
         }
 
+        public override Task<IAsyncCursor<byte[]>> AggregateBytesAsync<TResult>(PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return UsingImplicitSessionAsync(session => AggregateBytesAsync(session, pipeline, options, cancellationToken), cancellationToken);
+        }
+
+        public override async Task<IAsyncCursor<byte[]>> AggregateBytesAsync<TResult>(IClientSessionHandle session, PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            Ensure.IsNotNull(session, nameof(session));
+            var renderedPipeline = Ensure.IsNotNull(pipeline, nameof(pipeline)).Render(_documentSerializer, _settings.SerializerRegistry);
+            options = options ?? new AggregateOptions();
+
+            var last = renderedPipeline.Documents.LastOrDefault();
+            if (last != null && last.GetElement(0).Name == "$out")
+            {
+                var aggregateOperation = CreateAggregateToCollectionOperation(renderedPipeline, options);
+                await ExecuteWriteOperationAsync(session, aggregateOperation, cancellationToken).ConfigureAwait(false);
+
+                // we want to delay execution of the find because the user may
+                // not want to iterate the results at all...
+                var findOperation = CreateAggregateToCollectionFindOperation(last, renderedPipeline.OutputSerializer, options);
+                var forkedSession = session.Fork();
+                var deferredCursor = new DeferredAsyncCursor<byte[]>(
+                    () => forkedSession.Dispose(),
+                    ct => ExecuteBytesReadOperation(forkedSession, findOperation, ReadPreference.Primary, ct),
+                    ct => ExecuteBytesReadOperationAsync(forkedSession, findOperation, ReadPreference.Primary, ct));
+                return await Task.FromResult<IAsyncCursor<byte[]>>(deferredCursor).ConfigureAwait(false);
+            }
+            else
+            {
+                var aggregateOperation = CreateAggregateOperation(renderedPipeline, options);
+                return await ExecuteBytesReadOperationAsync(session, aggregateOperation, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         public override BulkWriteResult<TDocument> BulkWrite(IEnumerable<WriteModel<TDocument>> requests, BulkWriteOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
             return UsingImplicitSession(session => BulkWrite(session, requests, options, cancellationToken), cancellationToken);
@@ -1055,6 +1089,14 @@ namespace MongoDB.Driver
             using (var binding = CreateReadBinding(session, readPreference))
             {
                 return _operationExecutor.ExecuteReadOperation(binding, operation, cancellationToken);
+            }
+        }
+
+        private IAsyncCursor<byte[]> ExecuteBytesReadOperation<TResult>(IClientSessionHandle session, IReadOperation<TResult> operation, ReadPreference readPreference, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            using (var binding = CreateReadBinding(session, readPreference))
+            {
+                return _operationExecutor.ExecuteBytesReadOperation(binding, operation, cancellationToken);
             }
         }
 

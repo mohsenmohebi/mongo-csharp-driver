@@ -238,5 +238,11 @@ namespace MongoDB.Driver.Core.WireProtocol
             var supportedProtocol = CreateBytesSupportedWireProtocol(connection);
             return supportedProtocol.ExecuteBytesAsync(connection, cancellationToken);
         }
+
+        public byte[] ExecuteBytes(IConnection connection, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var supportedProtocol = CreateSupportedWireProtocol(connection);
+            return supportedProtocol.ExecuteBytes(connection, cancellationToken);
+        }
     }
 }
