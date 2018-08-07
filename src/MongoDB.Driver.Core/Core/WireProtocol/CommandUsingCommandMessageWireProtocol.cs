@@ -185,7 +185,7 @@ namespace MongoDB.Driver.Core.WireProtocol
 
                 try
                 {
-                    var doc = message.WrappedMessage.Sections.Single().ToBsonDocument();
+                    var doc = message.WrappedMessage.Sections.First().ToBsonDocument();
 
                     await connection.SendMessageAsync(message, _messageEncoderSettings, cancellationToken).ConfigureAwait(false);
                 }
